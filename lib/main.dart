@@ -1,5 +1,8 @@
+import 'dart:developer';
+import 'package:calculaor/calc_provider.dart';
+
 import 'package:flutter/material.dart';
-import 'package:math_expressions/math_expressions.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -8,16 +11,21 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<CalcProvider>(
+          create: (context) => CalcProvider(),
+        ),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+        ),
+        home: const Caculator(),
       ),
-      home: Caculator(),
     );
   }
 }
@@ -30,58 +38,13 @@ class Caculator extends StatefulWidget {
 }
 
 class _CaculatorState extends State<Caculator> {
-  bool darkMode = false;
-
-  String equation = "0";
-  String result = "0";
-  String expression = "";
-  double equationFontSize = 38.0;
-  double resultFontSize = 48.0;
+  late CalcProvider provider;
   String buttonValue = "";
-  buttonPressed(String buttonText) {
-    print(buttonText);
-    setState(() {
-      if (buttonText == "C") {
-        equation = "0";
-        result = "0";
-        equationFontSize = 38.0;
-        resultFontSize = 48.0;
-      } else if (buttonText == "⌫") {
-        equationFontSize = 48.0;
-        resultFontSize = 38.0;
-        equation = equation.substring(0, equation.length - 1);
-        if (equation == "") {
-          equation = "0";
-        }
-      } else if (buttonText == "=") {
-        equationFontSize = 38.0;
-        resultFontSize = 48.0;
+  @override
+  void initState() {
+    provider = Provider.of<CalcProvider>(context, listen: false);
 
-        expression = equation;
-        expression = expression.replaceAll('×', '*');
-        expression = expression.replaceAll('÷', '/');
-
-        try {
-          Parser p = Parser();
-          Expression exp = p.parse(expression);
-
-          ContextModel cm = ContextModel();
-          result = '${exp.evaluate(EvaluationType.REAL, cm)}';
-          print(equation);
-          print(result);
-        } catch (e) {
-          result = "Error";
-        }
-      } else {
-        equationFontSize = 48.0;
-        resultFontSize = 38.0;
-        if (equation == "0") {
-          equation = buttonText;
-        } else {
-          equation = equation + buttonText;
-        }
-      }
-    });
+    super.initState();
   }
 
   @override
@@ -89,151 +52,246 @@ class _CaculatorState extends State<Caculator> {
     double _height = MediaQuery.of(context).size.height;
     double _width = MediaQuery.of(context).size.width;
     return Scaffold(
-      backgroundColor: Color(0xFF292D32),
       body: SafeArea(
-        child: SizedBox(
-          height: _height,
-          width: _width,
-          child: Column(
-            children: [
-              Flexible(
-                flex: 1,
-                child: Container(
-                  // height: _height * 0.2,
-                  padding: EdgeInsets.only(right: 50, bottom: 20),
-                  width: _width,
-                  color: Colors.amber,
-                  alignment: Alignment.bottomRight,
-                  child: Column(
-                    children: [
-                      IconButton(
-                          onPressed: () {
-                            setState(() {
-                              // darkMode = !darkMode;
-                            });
-                          },
-                          icon: Icon(
-                              darkMode ? Icons.dark_mode : Icons.light_mode)),
-                      Text(
-                        equation,
-                        style: const TextStyle(
-                          fontSize: 30.0,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        result,
-                        style: const TextStyle(
-                          fontSize: 30.0,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
+        child: Consumer<CalcProvider>(builder: (context, provider, snapshot) {
+          return Container(
+            height: _height,
+            color: provider.darkMode
+                ? const Color(0xFF292D32)
+                : const Color(0xFFEFEEEE),
+            width: _width,
+            child: Column(
+              children: [
+                buildResult(_height, _width, provider),
+                const Spacer(),
+                if (!provider.history)
+                  buildButtons()
+                else
+                  buildShowHistory(provider),
+                const SizedBox(
+                  height: 20,
                 ),
-              ),
-              SizedBox(
-                height: 50,
-              ),
-              Flexible(
-                flex: 3,
-                child: Table(
-                  children: [
-                    TableRow(children: [
-                      buildButton("C", Colors.redAccent),
-                      buildButton("⌫", Colors.blue),
-                      buildButton("÷", Colors.blue),
-                    ]),
-                    TableRow(children: [
-                      buildButton("7", Colors.black54),
-                      buildButton("8", Colors.black54),
-                      buildButton("9", Colors.black54),
-                    ]),
-                    TableRow(children: [
-                      buildButton("4", Colors.black54),
-                      buildButton("5", Colors.black54),
-                      buildButton("6", Colors.black54),
-                    ]),
-                    TableRow(children: [
-                      buildButton("1", Colors.black54),
-                      buildButton("2", Colors.black54),
-                      buildButton("3", Colors.black54),
-                    ]),
-                    TableRow(children: [
-                      buildButton(".", Colors.black54),
-                      buildButton("0", Colors.black54),
-                      buildButton("00", Colors.black54),
-                    ]),
-                    TableRow(children: [
-                      buildButton("×", Colors.blue),
-                      buildButton("-", Colors.blue),
-                      buildButton("+", Colors.blue),
-                    ]),
-                  ],
-                ),
-              ),
-              // Container(
-              //   width: MediaQuery.of(context).size.width * 0.25,
-              //   child:,
-              // ),
-              buildButton("=", Colors.redAccent),
-            ],
-          ),
-        ),
+                if (!provider.history) buildButton("="),
+                const Spacer(),
+                buildHistoryButton(provider),
+                const SizedBox(
+                  height: 30,
+                )
+              ],
+            ),
+          );
+        }),
       ),
     );
   }
 
-  Widget buildButton(String value, Color color) {
-    return InkWell(
-      onTap: () {
-        buttonPressed(value);
-
-        // print("object;");
-        // // int value2 = int.parse("1");
-        // setState(() {
-        //   value2++;
-        //   // value2 = int.parse(value);
-        // });
-        // print(value);
-        // print(",..$value2");
-
-        // setState(() {
-        //   isClicked = !isClicked;
-        // });
-      },
-      child: Container(
-        width: 50,
-        height: 50,
-        margin: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.white.withOpacity(0.1),
-              offset: darkMode ? Offset(-6.0, -6.0) : Offset(6.0, 6.0),
-              blurRadius: 16.0,
+  Widget buildResult(_height, _width, CalcProvider provider) {
+    return Container(
+      height: _height * 0.3,
+      padding: const EdgeInsets.only(right: 50, bottom: 20),
+      width: _width,
+      color: Colors.amber,
+      // alignment: Alignment.bottomRight,
+      child: Column(
+        // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Align(
+            alignment: Alignment.topRight,
+            child: IconButton(
+              onPressed: () {
+                provider.darkMode = !provider.darkMode;
+                log(",.,.,${provider.resultsList}");
+                log("....${provider.equationsList}");
+              },
+              icon:
+                  Icon(provider.darkMode ? Icons.dark_mode : Icons.light_mode),
+              iconSize: 30,
+              enableFeedback: true,
             ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              offset: darkMode ? Offset(6.0, 6.0) : Offset(-6.0, -6.0),
-              blurRadius: 16.0,
-            ),
-          ],
-          color: Color(0xFF292D32),
-          borderRadius: BorderRadius.circular(12.0),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          value,
-          style: TextStyle(
-            fontSize: 30.0,
-            fontWeight: FontWeight.normal,
-            color: Colors.white,
           ),
-        ),
+          SizedBox(
+            height: 40,
+          ),
+          Align(
+            alignment: Alignment.topRight,
+            child: Text(
+              provider.equation,
+              style: TextStyle(
+                fontSize: provider.equationFontSize,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 60,
+          ),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Text(
+              provider.result,
+              style: TextStyle(
+                fontSize: provider.resultFontSize,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget buildHistoryButton(CalcProvider provider) {
+    return ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          primary: Colors.pinkAccent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25),
+          ),
+          elevation: 15.0,
+        ),
+        onPressed: () {
+          log("message");
+
+          // log("...${provider.historyValue}");
+          provider.showHistory();
+        },
+        child: Text(!provider.history ? "History" : "Calclator"));
+  }
+
+  Widget buildShowHistory(CalcProvider provider) {
+    return Container(
+      // color: !provider.darkMode
+      //     ? const Color(0xFF292D32)
+      //     : const Color(0xFFEFEEEE),
+      height: 500,
+      width: 500,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Column(
+        children: [
+          ...historyValues(provider),
+          provider.resultsList.isNotEmpty
+              ? clearHistory(provider)
+              : const Text(
+                  "\n\n\n\n Nothing",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 25.0,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget clearHistory(CalcProvider provider) {
+    return ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          primary: Colors.pinkAccent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25),
+          ),
+          elevation: 15.0,
+        ),
+        onPressed: () {
+          provider.clearHistory();
+        },
+        child: const Text("Clear-History"));
+  }
+
+  List<Widget> historyValues(CalcProvider provider) {
+    return List.generate(
+      provider.equationsList.length,
+      (index) {
+        log("...${provider.equationsList.length}");
+
+        return ListTile(
+          // tileColor: Colors.amber,
+          title: Text(
+            provider.equationsList[index],
+            style: TextStyle(
+              fontSize: 20.0,
+              fontWeight: FontWeight.w600,
+              color: Colors.amber.shade300,
+            ),
+          ),
+          subtitle: Text(provider.resultsList[index],
+              style: TextStyle(
+                fontSize: 25.0,
+                fontWeight: FontWeight.w600,
+                color: provider.darkMode
+                    ? Colors.white
+                    : Colors.black.withOpacity(0.8),
+              )),
+        );
+      },
+    );
+  }
+
+  Widget buildButtons() {
+    return Table(
+      
+      children: [
+        TableRow(
+            children: [buildButton("C"), buildButton("⌫"), buildButton("÷")]),
+        TableRow(
+            children: [buildButton("7"), buildButton("8"), buildButton("9")]),
+        TableRow(
+            children: [buildButton("4"), buildButton("5"), buildButton("6")]),
+        TableRow(
+            children: [buildButton("1"), buildButton("2"), buildButton("3")]),
+        TableRow(
+            children: [buildButton("."), buildButton("0"), buildButton("00")]),
+        TableRow(
+            children: [buildButton("×"), buildButton("-"), buildButton("+")]),
+      ],
+    );
+  }
+
+  Widget buildButton(String value) {
+    return Selector<CalcProvider, bool>(
+        selector: (p0, p1) => p1.darkMode,
+        builder: (context, dark, snapshot) {
+          return InkWell(
+            onTap: () {
+              provider.buttonPressed(value);
+            },
+            child: Container(
+              width: 50,
+              height: 50,
+              margin: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    offset: Offset(6.0, 6.0),
+                    blurRadius: 16.0,
+                  ),
+                  BoxShadow(
+                    color: provider.darkMode
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.white.withOpacity(0.5),
+                    offset: Offset(-6.0, -6.0),
+                    blurRadius: 16.0,
+                  ),
+                ],
+                color: dark ? const Color(0xFF292D32) : Color(0xFFE3E2E2),
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 30.0,
+                  fontWeight: FontWeight.normal,
+                  color: dark ? Colors.white : Colors.black,
+                ),
+              ),
+            ),
+          );
+        });
   }
 }
